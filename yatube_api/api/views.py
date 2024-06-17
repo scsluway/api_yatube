@@ -1,27 +1,17 @@
-from rest_framework import viewsets
 from django.shortcuts import get_object_or_404
+from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied
 
-from . import serializers
-from posts.models import Comment, Group, Post
+from api.permissions import OnlyAuthorUpdateDestroy
+from api.serializers import CommentSerializer, GroupSerializer, PostSerializer
+from posts.models import Group, Post
 
 
-class OnlyAuthorUpdateDestroyMixin:
 
-    def perform_update(self, serializer):
-        if serializer.instance.author != self.request.user:
-            raise PermissionDenied('Изменение чужого контента запрещено!')
-        super().perform_update(serializer)
-
-    def perform_destroy(self, serializer):
-        if serializer.author != self.request.user:
-            raise PermissionDenied('Удаление чужого контента запрещено!')
-        super().perform_destroy(serializer)
-
-
-class PostViewSet(OnlyAuthorUpdateDestroyMixin, viewsets.ModelViewSet):
+class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
-    serializer_class = serializers.PostSerializer
+    serializer_class = PostSerializer
+    permission_classes = (OnlyAuthorUpdateDestroy,)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -29,17 +19,18 @@ class PostViewSet(OnlyAuthorUpdateDestroyMixin, viewsets.ModelViewSet):
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
-    serializer_class = serializers.GroupSerializer
+    serializer_class = GroupSerializer
 
 
-class CommentViewSet(OnlyAuthorUpdateDestroyMixin, viewsets.ModelViewSet):
-    serializer_class = serializers.CommentSerializer
+class CommentViewSet(viewsets.ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = (OnlyAuthorUpdateDestroy,)
+
+    def get_post(self):
+        return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
 
     def get_queryset(self):
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
-        new_queryset = Comment.objects.filter(post=post)
-        return new_queryset
+        return self.get_post().comments
 
     def perform_create(self, serializer):
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
-        serializer.save(author=self.request.user, post=post)
+        serializer.save(author=self.request.user, post=self.get_post())
