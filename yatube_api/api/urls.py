@@ -1,9 +1,8 @@
 from django.urls import include, path
-from rest_framework.routers import SimpleRouter
 from rest_framework.authtoken.views import obtain_auth_token
+from rest_framework.routers import SimpleRouter
 
 from . import views
-
 
 v1_router = SimpleRouter()
 v1_router.register('posts', views.PostViewSet, basename='post')
