@@ -7,7 +7,6 @@ class OnlyAuthorUpdateDestroy(permissions.BasePermission):
         return request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
-        method = request.method
-        if method == 'DELETE' or method == 'PUT' or method == 'PATCH':
-            return obj.author == request.user
-        return True
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.author == request.user
